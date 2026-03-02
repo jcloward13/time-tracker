@@ -232,6 +232,27 @@ export default function TimeTracker() {
     updateDayData({...dayData,slots:dayData.slots.map((sl,j)=>j===idx?{...sl,color}:sl)});
   }
 
+  function addParallel(idx){
+    updateDayData({...dayData,slots:dayData.slots.map((sl,i)=>i!==idx?sl:{...sl,parallel:[...(sl.parallel||[]),{text:"",tag:""}]})});
+  }
+
+  function removeParallel(idx,pi){
+    updateDayData({...dayData,slots:dayData.slots.map((sl,i)=>i!==idx?sl:{...sl,parallel:(sl.parallel||[]).filter((_,j)=>j!==pi)})});
+  }
+
+  function setParallelText(idx,pi,text){
+    updateDayData({...dayData,slots:dayData.slots.map((sl,i)=>i!==idx?sl:{...sl,parallel:(sl.parallel||[]).map((p,j)=>j===pi?{...p,text}:p)})});
+  }
+
+  function setParallelTag(idx,pi,tag){
+    if(tag==="__custom__"){
+      const custom=prompt("Enter custom tag name:");
+      if(!custom||!custom.trim())return;
+      tag=custom.trim().toLowerCase();
+    }
+    updateDayData({...dayData,slots:dayData.slots.map((sl,i)=>i!==idx?sl:{...sl,parallel:(sl.parallel||[]).map((p,j)=>j===pi?{...p,tag}:p)})});
+  }
+
   function goDay(offset){
     const d=keyToDate(activeKey);d.setDate(d.getDate()+offset);
     const newKey=dateToKey(d);if(newKey>todayKey())return;setActiveKey(newKey);
@@ -291,7 +312,14 @@ export default function TimeTracker() {
       const fromMin=startMin+i*INTERVAL,toMin=startMin+(i+s.span)*INTERVAL;
       const range=s.span>1?`${fmtMin(fromMin)} – ${fmtMin(toMin)} (${s.span*10}m)`:fmtMin(fromMin);
       const tag=s.tag?` [${s.tag}]`:"";
-      out+=`${range}${tag}\n  ${s.text||"—"}\n\n`;
+      out+=`${range}${tag}\n  ${s.text||"—"}\n`;
+      if(s.parallel&&s.parallel.length>0){
+        for(const pt of s.parallel){
+          const ptag=pt.tag?` [${pt.tag}]`:"";
+          out+=`  ∥ ${pt.text||"—"}${ptag}\n`;
+        }
+      }
+      out+="\n";
       i+=s.span;
     }
     const url=URL.createObjectURL(new Blob([out],{type:"text/plain"}));
@@ -377,6 +405,7 @@ export default function TimeTracker() {
       <div style={{fontSize:"0.72rem",color:"#4a5568",marginBottom:16,fontFamily:"IBM Plex Mono"}}>
         <span style={{color:"#0099ff"}}>+ extend</span> to merge slots ·{" "}
         <span style={{color:"#7a6080"}}>− trim</span> to shrink ·{" "}
+        <span style={{color:"#a29bfe"}}>∥ sim</span> to add a simultaneous task ·{" "}
         use the dashed buttons to expand the day's range
         {!isToday&&<span style={{color:"#ff9f43",marginLeft:12}}>◆ Viewing past day</span>}
       </div>
@@ -415,69 +444,113 @@ export default function TimeTracker() {
                     const durLabel=fmtDuration(bspan*INTERVAL);
                     return (
                       <div key={idx} id={`slot-${idx}`} style={{
-                        display:"flex",alignItems:"stretch",
+                        display:"flex",flexDirection:"column",
                         borderBottom:"1px solid #1a1f26",
                         borderLeft:isInBlock?"2px solid #0099ff":bspan>1?"3px solid rgba(0,229,160,0.35)":isExtended?"2px solid rgba(255,159,67,0.25)":"none",
                         background:blockS.color||(blockS.text?(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length]):"transparent"),
-                        minHeight:bspan*44,transition:"background 0.1s",
+                        transition:"background 0.1s",
                       }}>
-                        <div style={{
-                          fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",
-                          color:isInBlock?"#0099ff":isExtended?"#8a7040":blockS.text?"#00e5a0":"#4a5568",
-                          width:48,minWidth:48,display:"flex",alignItems:bspan>1?"flex-start":"center",
-                          justifyContent:"flex-end",padding:bspan>1?"8px 8px 0":"0 8px",
-                          borderRight:"1px solid #252a32",flexShrink:0,
-                          opacity:0.75,
-                        }}>
-                          {bspan>1?<span style={{textAlign:"right",lineHeight:1.4}}>{fmtMinShort(slotMin)}–<br/>{fmtMinShort(blockEndMin)}</span>:fmtMin(slotMin)}
+                        {/* Main row */}
+                        <div style={{display:"flex",alignItems:"stretch",minHeight:bspan*44}}>
+                          <div style={{
+                            fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",
+                            color:isInBlock?"#0099ff":isExtended?"#8a7040":blockS.text?"#00e5a0":"#4a5568",
+                            width:48,minWidth:48,display:"flex",alignItems:bspan>1?"flex-start":"center",
+                            justifyContent:"flex-end",padding:bspan>1?"8px 8px 0":"0 8px",
+                            borderRight:"1px solid #252a32",flexShrink:0,
+                            opacity:0.75,
+                          }}>
+                            {bspan>1?<span style={{textAlign:"right",lineHeight:1.4}}>{fmtMinShort(slotMin)}–<br/>{fmtMinShort(blockEndMin)}</span>:fmtMin(slotMin)}
+                          </div>
+                          <textarea value={blockS.text} onChange={e=>setSlotText(bs,e.target.value)}
+                            placeholder={isInBlock?"← current":""} rows={1}
+                            style={{
+                              flex:1,background:"transparent",border:"none",
+                              color:blockS.text?"#c8f5e5":"#e8eaf0",
+                              fontFamily:"'IBM Plex Sans',sans-serif",fontSize:"0.82rem",
+                              padding:"10px 10px",outline:"none",resize:"none",
+                              minHeight:bspan*44,lineHeight:1.5,
+                            }}/>
+                          <div style={{display:"flex",alignItems:"flex-start",gap:5,padding:"8px 8px 0",flexShrink:0}}>
+                            {bspan>1&&(
+                              <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",color:"#00e5a0",padding:"2px 6px",border:"1px solid rgba(0,229,160,0.25)",borderRadius:3,whiteSpace:"nowrap"}}>
+                                {durLabel}
+                              </span>
+                            )}
+                            <select value={blockS.tag||""} onChange={e=>setSlotTag(bs,e.target.value)} style={{
+                              background:blockS.tag?"rgba(0,229,160,0.08)":"#0d0f12",
+                              border:`1px solid ${blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#3a4555"}`,
+                              color:blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#6a8090",
+                              fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 7px",
+                              borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",
+                            }}>
+                              <option value="">tag</option>
+                              {TAGS.map(t=><option key={t} value={t}>{t}</option>)}
+                              {blockS.tag&&!TAGS.includes(blockS.tag)&&<option value={blockS.tag}>{blockS.tag}</option>}
+                              <option value="__custom__">+ custom…</option>
+                            </select>
+                            <input type="color"
+                              value={blockS.color||(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length])}
+                              onChange={e=>setSlotColor(bs,e.target.value)}
+                              title="Change block color"
+                              style={{width:22,height:22,border:"1px solid #3a4555",borderRadius:4,cursor:"pointer",padding:2,background:"none"}}/>
+                            <button onClick={()=>splitBlock(idx)}
+                              onMouseEnter={e=>{e.currentTarget.style.borderColor="#ff7675";e.currentTarget.style.color="#ff7675";}}
+                              onMouseLeave={e=>{e.currentTarget.style.borderColor="#503060";e.currentTarget.style.color="#a07898";}}
+                              style={{visibility:bspan>1?"visible":"hidden",background:"none",border:"1px solid #503060",color:"#a07898",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              − trim
+                            </button>
+                            {bs+bspan<total&&(
+                              <button onClick={()=>mergeDown(idx)}
+                                onMouseEnter={e=>{e.currentTarget.style.borderColor="#0099ff";e.currentTarget.style.color="#0099ff";}}
+                                onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a4560";e.currentTarget.style.color="#5a9fc0";}}
+                                style={{background:"none",border:"1px solid #2a4560",color:"#5a9fc0",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                                + extend
+                              </button>
+                            )}
+                            <button onClick={()=>addParallel(bs)}
+                              onMouseEnter={e=>{e.currentTarget.style.borderColor="#a29bfe";e.currentTarget.style.color="#a29bfe";}}
+                              onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a2a50";e.currentTarget.style.color="#5a5a90";}}
+                              title="Add simultaneous task"
+                              style={{background:"none",border:"1px solid #2a2a50",color:"#5a5a90",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                              ∥ sim
+                            </button>
+                          </div>
                         </div>
-                            <textarea value={blockS.text} onChange={e=>setSlotText(bs,e.target.value)}
-                              placeholder={isInBlock?"← current":""} rows={1}
+                        {/* Parallel tasks */}
+                        {(blockS.parallel||[]).map((pt,pi)=>(
+                          <div key={pi} style={{display:"flex",alignItems:"center",borderTop:"1px dashed #1a2030",marginLeft:49,borderLeft:"2px solid #a29bfe"}}>
+                            <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.65rem",color:"#a29bfe",padding:"0 8px",flexShrink:0,opacity:0.7}}>∥</span>
+                            <textarea value={pt.text} onChange={e=>setParallelText(bs,pi,e.target.value)}
+                              rows={1}
+                              aria-label="Simultaneous task description"
+                              placeholder="simultaneous task…"
                               style={{
                                 flex:1,background:"transparent",border:"none",
-                                color:blockS.text?"#c8f5e5":"#e8eaf0",
+                                color:pt.text?"#c8c0ff":"#e8eaf0",
                                 fontFamily:"'IBM Plex Sans',sans-serif",fontSize:"0.82rem",
-                                padding:"10px 10px",outline:"none",resize:"none",
-                                minHeight:bspan*44,lineHeight:1.5,
+                                padding:"6px 10px",outline:"none",resize:"none",
+                                minHeight:36,lineHeight:1.5,
                               }}/>
-                            <div style={{display:"flex",alignItems:"flex-start",gap:5,padding:"8px 8px 0",flexShrink:0}}>
-                              {bspan>1&&(
-                                <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",color:"#00e5a0",padding:"2px 6px",border:"1px solid rgba(0,229,160,0.25)",borderRadius:3,whiteSpace:"nowrap"}}>
-                                  {durLabel}
-                                </span>
-                              )}
-                              <select value={blockS.tag||""} onChange={e=>setSlotTag(bs,e.target.value)} style={{
-                                background:blockS.tag?"rgba(0,229,160,0.08)":"#0d0f12",
-                                border:`1px solid ${blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#3a4555"}`,
-                                color:blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#6a8090",
-                                fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 7px",
-                                borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",
-                              }}>
-                                <option value="">tag</option>
-                                {TAGS.map(t=><option key={t} value={t}>{t}</option>)}
-                                {blockS.tag&&!TAGS.includes(blockS.tag)&&<option value={blockS.tag}>{blockS.tag}</option>}
-                                <option value="__custom__">+ custom…</option>
-                              </select>
-                              <input type="color"
-                                value={blockS.color||(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length])}
-                                onChange={e=>setSlotColor(bs,e.target.value)}
-                                title="Change block color"
-                                style={{width:22,height:22,border:"1px solid #3a4555",borderRadius:4,cursor:"pointer",padding:2,background:"none"}}/>
-                              <button onClick={()=>splitBlock(idx)}
-                                onMouseEnter={e=>{e.currentTarget.style.borderColor="#ff7675";e.currentTarget.style.color="#ff7675";}}
-                                onMouseLeave={e=>{e.currentTarget.style.borderColor="#503060";e.currentTarget.style.color="#a07898";}}
-                                style={{visibility:bspan>1?"visible":"hidden",background:"none",border:"1px solid #503060",color:"#a07898",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
-                                − trim
-                              </button>
-                              {bs+bspan<total&&(
-                                <button onClick={()=>mergeDown(idx)}
-                                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#0099ff";e.currentTarget.style.color="#0099ff";}}
-                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a4560";e.currentTarget.style.color="#5a9fc0";}}
-                                  style={{background:"none",border:"1px solid #2a4560",color:"#5a9fc0",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
-                                  + extend
-                                </button>
-                              )}
-                            </div>
+                            <select value={pt.tag||""} onChange={e=>setParallelTag(bs,pi,e.target.value)} aria-label="Tag for simultaneous task" style={{
+                              background:pt.tag?"rgba(162,155,254,0.08)":"#0d0f12",
+                              border:`1px solid ${pt.tag?(TAG_COLORS[pt.tag]||"#a29bfe"):"#3a4555"}`,
+                              color:pt.tag?(TAG_COLORS[pt.tag]||"#a29bfe"):"#6a8090",
+                              fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 7px",
+                              borderRadius:4,cursor:"pointer",flexShrink:0,
+                            }}>
+                              <option value="">tag</option>
+                              {TAGS.map(t=><option key={t} value={t}>{t}</option>)}
+                              {pt.tag&&!TAGS.includes(pt.tag)&&<option value={pt.tag}>{pt.tag}</option>}
+                              <option value="__custom__">+ custom…</option>
+                            </select>
+                            <button onClick={()=>removeParallel(bs,pi)}
+                              onMouseEnter={e=>{e.currentTarget.style.color="#ff7675";}}
+                              onMouseLeave={e=>{e.currentTarget.style.color="#4a5568";}}
+                              title="Remove simultaneous task"
+                              style={{background:"none",border:"none",color:"#4a5568",cursor:"pointer",padding:"3px 10px",fontSize:"0.85rem",flexShrink:0,transition:"color 0.15s"}}>×</button>
+                          </div>
+                        ))}
                       </div>
                     );
                   })}
