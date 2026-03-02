@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
 const DEFAULT_START = 8 * 60;
-const DEFAULT_END = 17 * 60;
+const DEFAULT_END = 18 * 60;
 const INTERVAL = 10;
 const MIN_START = 0;
 const MAX_END = 24 * 60;
@@ -18,6 +18,11 @@ function fmtMin(m) {
   const suf = h >= 12 ? "PM" : "AM";
   const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${h12}:${pad(mn)} ${suf}`;
+}
+function fmtMinShort(m) {
+  const h = Math.floor(m / 60) % 24, mn = m % 60;
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${pad(mn)}`;
 }
 function todayKey() {
   const d = new Date();
@@ -66,7 +71,7 @@ function MiniCalendar({selectedKey,onSelect,loggedDays}) {
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
         {["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>(
-          <div key={d} style={{textAlign:"center",fontSize:"0.6rem",color:"#4a5568",fontFamily:"IBM Plex Mono",padding:"2px 0"}}>{d}</div>
+          <div key={d} style={{textAlign:"center",fontSize:"0.6rem",color:"#8a9ab0",fontFamily:"IBM Plex Mono",padding:"2px 0"}}>{d}</div>
         ))}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
@@ -206,14 +211,21 @@ export default function TimeTracker() {
     updateDayData({...dayData,slots:ns});
   }
 
-  function cycleTag(idx){
-    const slots=dayData.slots,s=blockStart(slots,idx),cur=slots[s].tag;
-    const i=TAGS.indexOf(cur),next=i>=TAGS.length-1?"":TAGS[i+1];
-    updateDayData({...dayData,slots:slots.map((sl,j)=>j===s?{...sl,tag:next}:sl)});
+  function setSlotTag(idx, tag) {
+    if(tag==="__custom__"){
+      const custom=prompt("Enter custom tag name:");
+      if(!custom||!custom.trim())return;
+      tag=custom.trim().toLowerCase();
+    }
+    updateDayData({...dayData,slots:dayData.slots.map((sl,j)=>j===idx?{...sl,tag}:sl)});
   }
 
   function setSlotText(idx,text){
     updateDayData({...dayData,slots:dayData.slots.map((sl,i)=>i===idx?{...sl,text}:sl)});
+  }
+
+  function setSlotColor(idx,color){
+    updateDayData({...dayData,slots:dayData.slots.map((sl,j)=>j===idx?{...sl,color}:sl)});
   }
 
   function goDay(offset){
@@ -359,7 +371,7 @@ export default function TimeTracker() {
                         display:"flex",alignItems:"stretch",
                         borderBottom:isCont?"none":"1px solid #1a1f26",
                         borderLeft:isInBlock?"2px solid #0099ff":bspan>1?"3px solid rgba(0,229,160,0.35)":isExtended?"2px solid rgba(255,159,67,0.25)":"none",
-                        background:blockS.text?(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length]):"transparent",
+                        background:blockS.color||(blockS.text?(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length]):"transparent"),
                         minHeight:isCont?16:44,transition:"background 0.1s",
                       }}>
                         <div style={{
@@ -383,33 +395,41 @@ export default function TimeTracker() {
                                 padding:"10px 10px",outline:"none",resize:"none",
                                 minHeight:bspan*44,lineHeight:1.5,
                               }}/>
-                            <div style={{display:"flex",alignItems:"center",gap:5,padding:"0 8px",flexShrink:0}}>
+                            <div style={{display:"flex",alignItems:"flex-start",gap:5,padding:"8px 8px 0",flexShrink:0}}>
                               {bspan>1&&(
-                                <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.62rem",color:"#00e5a0",padding:"2px 6px",border:"1px solid rgba(0,229,160,0.25)",borderRadius:3}}>
-                                  {bspan*10}m
+                                <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",color:"#00e5a0",padding:"2px 6px",border:"1px solid rgba(0,229,160,0.25)",borderRadius:3,whiteSpace:"nowrap"}}>
+                                  {fmtMinShort(slotMin)}–{fmtMinShort(slotMin+bspan*INTERVAL)}
                                 </span>
                               )}
-                              <button onClick={()=>cycleTag(idx)} style={{
-                                background:blockS.tag?"rgba(0,229,160,0.08)":"none",
+                              <select value={blockS.tag||""} onChange={e=>setSlotTag(bs,e.target.value)} style={{
+                                background:blockS.tag?"rgba(0,229,160,0.08)":"#0d0f12",
                                 border:`1px solid ${blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#3a4555"}`,
                                 color:blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#6a8090",
                                 fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 7px",
                                 borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",
-                              }}>{blockS.tag||"tag"}</button>
+                              }}>
+                                <option value="">tag</option>
+                                {TAGS.map(t=><option key={t} value={t}>{t}</option>)}
+                                {blockS.tag&&!TAGS.includes(blockS.tag)&&<option value={blockS.tag}>{blockS.tag}</option>}
+                                <option value="__custom__">+ custom…</option>
+                              </select>
+                              <input type="color"
+                                value={blockS.color||(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length])}
+                                onChange={e=>setSlotColor(bs,e.target.value)}
+                                title="Change block color"
+                                style={{width:22,height:22,border:"1px solid #3a4555",borderRadius:4,cursor:"pointer",padding:2,background:"none"}}/>
+                              <button onClick={()=>splitBlock(idx)}
+                                onMouseEnter={e=>{e.currentTarget.style.borderColor="#ff7675";e.currentTarget.style.color="#ff7675";}}
+                                onMouseLeave={e=>{e.currentTarget.style.borderColor="#503060";e.currentTarget.style.color="#a07898";}}
+                                style={{visibility:bspan>1?"visible":"hidden",background:"none",border:"1px solid #503060",color:"#a07898",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
+                                − trim
+                              </button>
                               {bs+bspan<total&&(
                                 <button onClick={()=>mergeDown(idx)}
                                   onMouseEnter={e=>{e.currentTarget.style.borderColor="#0099ff";e.currentTarget.style.color="#0099ff";}}
                                   onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a4560";e.currentTarget.style.color="#5a9fc0";}}
                                   style={{background:"none",border:"1px solid #2a4560",color:"#5a9fc0",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                                   + extend
-                                </button>
-                              )}
-                              {bspan>1&&(
-                                <button onClick={()=>splitBlock(idx)}
-                                  onMouseEnter={e=>{e.currentTarget.style.borderColor="#ff7675";e.currentTarget.style.color="#ff7675";}}
-                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#503060";e.currentTarget.style.color="#a07898";}}
-                                  style={{background:"none",border:"1px solid #503060",color:"#a07898",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
-                                  − trim
                                 </button>
                               )}
                             </div>
