@@ -9,6 +9,9 @@ const MAX_END = 24 * 60;
 const TAGS = ["meeting", "deep work", "break", "admin"];
 const TAG_COLORS = { meeting: "#0099ff", "deep work": "#00e5a0", break: "#ff9f43", admin: "#a29bfe" };
 
+const BLOCK_BG_COLORS = ["#1a2e25","#1c2035","#2a1a2e","#2e2218","#1e282e","#2e1e22"];
+const BLOCK_BG_COLORS_EXT = ["#201e14","#14202e","#22142e","#2e2414","#142028","#2e1418"];
+
 function pad(n) { return n.toString().padStart(2, "0"); }
 function fmtMin(m) {
   const h = Math.floor(m / 60) % 24, mn = m % 60;
@@ -356,7 +359,7 @@ export default function TimeTracker() {
                         display:"flex",alignItems:"stretch",
                         borderBottom:isCont?"none":"1px solid #1a1f26",
                         borderLeft:isInBlock?"2px solid #0099ff":bspan>1?"3px solid rgba(0,229,160,0.35)":isExtended?"2px solid rgba(255,159,67,0.25)":"none",
-                        background:blockS.text?(isExtended?"#201e14":"#1a2e25"):"transparent",
+                        background:blockS.text?(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length]):"transparent",
                         minHeight:isCont?16:44,transition:"background 0.1s",
                       }}>
                         <div style={{
@@ -388,24 +391,24 @@ export default function TimeTracker() {
                               )}
                               <button onClick={()=>cycleTag(idx)} style={{
                                 background:blockS.tag?"rgba(0,229,160,0.08)":"none",
-                                border:`1px solid ${blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#252a32"}`,
-                                color:blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#4a5568",
+                                border:`1px solid ${blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#3a4555"}`,
+                                color:blockS.tag?(TAG_COLORS[blockS.tag]||"#00e5a0"):"#6a8090",
                                 fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 7px",
                                 borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",
                               }}>{blockS.tag||"tag"}</button>
                               {bs+bspan<total&&(
                                 <button onClick={()=>mergeDown(idx)}
                                   onMouseEnter={e=>{e.currentTarget.style.borderColor="#0099ff";e.currentTarget.style.color="#0099ff";}}
-                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#252a32";e.currentTarget.style.color="#4a5568";}}
-                                  style={{background:"none",border:"1px solid #252a32",color:"#4a5568",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
+                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a4560";e.currentTarget.style.color="#5a9fc0";}}
+                                  style={{background:"none",border:"1px solid #2a4560",color:"#5a9fc0",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.15s"}}>
                                   + extend
                                 </button>
                               )}
                               {bspan>1&&(
                                 <button onClick={()=>splitBlock(idx)}
                                   onMouseEnter={e=>{e.currentTarget.style.borderColor="#ff7675";e.currentTarget.style.color="#ff7675";}}
-                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#2a2030";e.currentTarget.style.color="#5a4060";}}
-                                  style={{background:"none",border:"1px solid #2a2030",color:"#5a4060",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
+                                  onMouseLeave={e=>{e.currentTarget.style.borderColor="#503060";e.currentTarget.style.color="#a07898";}}
+                                  style={{background:"none",border:"1px solid #503060",color:"#a07898",fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",padding:"3px 8px",borderRadius:4,cursor:"pointer",whiteSpace:"nowrap"}}>
                                   − trim
                                 </button>
                               )}
