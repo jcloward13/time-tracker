@@ -24,6 +24,10 @@ function fmtMinShort(m) {
   const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${h12}:${pad(mn)}`;
 }
+function fmtDuration(m) {
+  if(m>=60) return m%60===0?`${m/60}h`:`${Math.floor(m/60)}h ${m%60}m`;
+  return `${m}m`;
+}
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -194,7 +198,7 @@ export default function TimeTracker() {
     const nextSpan=slots[next].span;
     const ns=slots.map((sl,i)=>{
       if(i===s)return{...sl,span:span+nextSpan};
-      if(i>s&&i<s+span+nextSpan)return{...sl,span:0,text:"",tag:""};
+      if(i>s&&i<s+span+nextSpan)return{...sl,span:0,text:"",tag:"",color:undefined};
       return sl;
     });
     updateDayData({...dayData,slots:ns});
@@ -406,26 +410,27 @@ export default function TimeTracker() {
                     const slotMin=startMin+idx*INTERVAL;
                     const isInBlock=isToday&&currentSlotIdx>=bs&&currentSlotIdx<bs+bspan&&currentSlotIdx>=0&&currentSlotIdx<total;
                     const isExtended=slotMin<DEFAULT_START||slotMin>=DEFAULT_END;
+                    if(isCont)return null;
+                    const blockEndMin=slotMin+bspan*INTERVAL;
+                    const durLabel=fmtDuration(bspan*INTERVAL);
                     return (
                       <div key={idx} id={`slot-${idx}`} style={{
                         display:"flex",alignItems:"stretch",
-                        borderBottom:isCont?"none":"1px solid #1a1f26",
+                        borderBottom:"1px solid #1a1f26",
                         borderLeft:isInBlock?"2px solid #0099ff":bspan>1?"3px solid rgba(0,229,160,0.35)":isExtended?"2px solid rgba(255,159,67,0.25)":"none",
                         background:blockS.color||(blockS.text?(isExtended?BLOCK_BG_COLORS_EXT[bs%BLOCK_BG_COLORS_EXT.length]:BLOCK_BG_COLORS[bs%BLOCK_BG_COLORS.length]):"transparent"),
-                        minHeight:isCont?16:44,transition:"background 0.1s",
+                        minHeight:bspan*44,transition:"background 0.1s",
                       }}>
                         <div style={{
                           fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",
                           color:isInBlock?"#0099ff":isExtended?"#8a7040":blockS.text?"#00e5a0":"#4a5568",
-                          width:48,minWidth:48,display:"flex",alignItems:"center",
-                          justifyContent:"flex-end",padding:"0 8px",
+                          width:48,minWidth:48,display:"flex",alignItems:bspan>1?"flex-start":"center",
+                          justifyContent:"flex-end",padding:bspan>1?"8px 8px 0":"0 8px",
                           borderRight:"1px solid #252a32",flexShrink:0,
-                          opacity:isCont?0.1:0.75,
+                          opacity:0.75,
                         }}>
-                          {fmtMin(slotMin)}
+                          {bspan>1?<span style={{textAlign:"right",lineHeight:1.4}}>{fmtMinShort(slotMin)}–<br/>{fmtMinShort(blockEndMin)}</span>:fmtMin(slotMin)}
                         </div>
-                        {!isCont&&(
-                          <>
                             <textarea value={blockS.text} onChange={e=>setSlotText(bs,e.target.value)}
                               placeholder={isInBlock?"← current":""} rows={1}
                               style={{
@@ -438,7 +443,7 @@ export default function TimeTracker() {
                             <div style={{display:"flex",alignItems:"flex-start",gap:5,padding:"8px 8px 0",flexShrink:0}}>
                               {bspan>1&&(
                                 <span style={{fontFamily:"'IBM Plex Mono',monospace",fontSize:"0.6rem",color:"#00e5a0",padding:"2px 6px",border:"1px solid rgba(0,229,160,0.25)",borderRadius:3,whiteSpace:"nowrap"}}>
-                                  {fmtMinShort(slotMin)}–{fmtMinShort(slotMin+bspan*INTERVAL)}
+                                  {durLabel}
                                 </span>
                               )}
                               <select value={blockS.tag||""} onChange={e=>setSlotTag(bs,e.target.value)} style={{
@@ -473,8 +478,6 @@ export default function TimeTracker() {
                                 </button>
                               )}
                             </div>
-                          </>
-                        )}
                       </div>
                     );
                   })}
