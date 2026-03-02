@@ -239,6 +239,45 @@ export default function TimeTracker() {
     try{await window.storage.set(`day:${activeKey}`,JSON.stringify(fresh));}catch{}
   }
 
+  async function backupAll(){
+    try{
+      const result=await window.storage.list("day:");
+      const keys=result&&result.keys?result.keys:[];
+      const backup={version:1,exported:new Date().toISOString(),days:{}};
+      for(const k of keys){
+        const r=await window.storage.get(k);
+        if(r&&r.value)backup.days[k.replace("day:","")]=JSON.parse(r.value);
+      }
+      const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:"application/json"}));
+      const a=document.createElement("a");
+      a.href=url;a.download=`time-tracker-backup-${todayKey()}.json`;a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){alert("Backup failed: "+e.message);}
+  }
+
+  const restoreInputRef=useRef(null);
+  function restoreAll(){restoreInputRef.current.click();}
+  async function handleRestoreFile(e){
+    const file=e.target.files[0];if(!file)return;
+    e.target.value="";
+    try{
+      const text=await file.text();
+      const backup=JSON.parse(text);
+      if(!backup.days||typeof backup.days!=="object")throw new Error("Invalid backup file.");
+      const entries=Object.entries(backup.days);
+      for(const[,data]of entries){
+        if(!Array.isArray(data.slots)||typeof data.startMin!=="number"||typeof data.endMin!=="number")
+          throw new Error("Invalid backup file: day entries have unexpected structure.");
+      }
+      const count=entries.length;
+      if(!confirm(`Restore ${count} day(s) from backup?\nThis will overwrite any matching days in your current data.`))return;
+      for(const[dateKey,data]of entries){
+        await window.storage.set(`day:${dateKey}`,JSON.stringify(data));
+      }
+      window.location.reload();
+    }catch(e){alert("Restore failed: "+e.message);}
+  }
+
   function exportDay(){
     const{slots,startMin}=dayData;
     let out=`TIME LOG — ${formatDateLabel(activeKey)} (${activeKey})\n${"─".repeat(52)}\n\n`;
@@ -251,9 +290,10 @@ export default function TimeTracker() {
       out+=`${range}${tag}\n  ${s.text||"—"}\n\n`;
       i+=s.span;
     }
+    const url=URL.createObjectURL(new Blob([out],{type:"text/plain"}));
     const a=document.createElement("a");
-    a.href=URL.createObjectURL(new Blob([out],{type:"text/plain"}));
-    a.download=`time-log-${activeKey}.txt`;a.click();
+    a.href=url;a.download=`time-log-${activeKey}.txt`;a.click();
+    URL.revokeObjectURL(url);
   }
 
   const{slots,startMin,endMin}=dayData;
@@ -452,9 +492,11 @@ export default function TimeTracker() {
         </div>
       )}
 
-      <div style={{marginTop:28,display:"flex",gap:12,flexWrap:"wrap"}}>
+      <div style={{marginTop:28,display:"flex",gap:12,flexWrap:"wrap",alignItems:"center"}}>
         {[
           {label:"Export Day",onClick:exportDay,primary:true},
+          {label:"Backup All",onClick:backupAll,primary:true},
+          {label:"Restore",onClick:restoreAll},
           {label:"Clear Day",onClick:clearDay},
         ].map(b=>(
           <button key={b.label} onClick={b.onClick} style={{
@@ -464,6 +506,7 @@ export default function TimeTracker() {
             color:b.primary?"#00e5a0":"#e8eaf0",cursor:"pointer",
           }}>{b.label}</button>
         ))}
+        <input ref={restoreInputRef} type="file" accept=".json" onChange={handleRestoreFile} style={{display:"none"}}/>
       </div>
     </div>
   );
