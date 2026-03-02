@@ -24,6 +24,10 @@ function fmtMinShort(m) {
   const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
   return `${h12}:${pad(mn)}`;
 }
+function fmtDuration(m) {
+  if(m>=60) return m%60===0?`${m/60}h`:`${Math.floor(m/60)}h ${m%60}m`;
+  return `${m}m`;
+}
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -408,8 +412,7 @@ export default function TimeTracker() {
                     const isExtended=slotMin<DEFAULT_START||slotMin>=DEFAULT_END;
                     if(isCont)return null;
                     const blockEndMin=slotMin+bspan*INTERVAL;
-                    const durMin=bspan*INTERVAL;
-                    const durLabel=durMin>=60?(durMin%60===0?`${durMin/60}h`:`${Math.floor(durMin/60)}h ${durMin%60}m`):`${durMin}m`;
+                    const durLabel=fmtDuration(bspan*INTERVAL);
                     return (
                       <div key={idx} id={`slot-${idx}`} style={{
                         display:"flex",alignItems:"stretch",
