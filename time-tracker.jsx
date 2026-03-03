@@ -6,8 +6,8 @@ const INTERVAL = 10;
 const MIN_START = 0;
 const MAX_END = 24 * 60;
 
-const TAGS = ["meeting", "deep work", "break", "admin"];
-const TAG_COLORS = { meeting: "#0099ff", "deep work": "#00e5a0", break: "#ff9f43", admin: "#a29bfe" };
+const TAGS = ["meeting", "deep work", "break", "admin", "tickets"];
+const TAG_COLORS = { meeting: "#0099ff", "deep work": "#F23407", break: "#ff9f43", admin: "#a29bfe", tickets: "#00e5a0" };
 
 const BLOCK_BG_COLORS = ["#1a2e25","#1c2035","#2a1a2e","#2e2218","#1e282e","#2e1e22"];
 const BLOCK_BG_COLORS_EXT = ["#201e14","#14202e","#22142e","#2e2414","#142028","#2e1418"];
